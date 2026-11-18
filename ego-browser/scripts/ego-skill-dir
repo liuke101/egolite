@@ -1,0 +1,28 @@
+#!/usr/bin/env bash
+# Print the directory of the ego lite official skill bundle (SKILL.md, references/,
+# learnings/, agents/) for the active installation, as a Linux-visible path.
+#
+# This skill is only the WSL bridge. The official bundle is the authority for the
+# browser API and for platform-specific install steps; read the file you need from
+# this directory instead of duplicating it.
+set -euo pipefail
+
+for dir in /mnt/c/Users/*/.local/share/ego/active_version_dir/ego-skills/ego-browser; do
+  if [[ -d $dir ]]; then
+    printf '%s\n' "$dir"
+    exit 0
+  fi
+done
+
+fallback=
+for dir in "/mnt/c/Program Files/Citro Labs/ego lite/Application"/*/ego-skills/ego-browser; do
+  [[ -d $dir ]] && fallback=$dir
+done
+
+if [[ -n $fallback ]]; then
+  printf '%s\n' "$fallback"
+  exit 0
+fi
+
+printf 'ego-skill-dir: ego lite official skill bundle not found.\n' >&2
+exit 1

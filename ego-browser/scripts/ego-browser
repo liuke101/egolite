@@ -1,0 +1,53 @@
+#!/usr/bin/env bash
+# ego-browser bridge: run the Windows ego-browser.exe from WSL through interop.
+#
+# Keeps stdin (heredoc), arguments and the exit code intact, so the ego-browser
+# usage guide applies unchanged. Override the executable with EGOLITE_BROWSER_EXE.
+set -uo pipefail
+
+find_exe() {
+  if [[ -n ${EGOLITE_BROWSER_EXE:-} ]]; then
+    printf '%s\n' "$EGOLITE_BROWSER_EXE"
+    return 0
+  fi
+
+  local cand
+  # Stable per-user shim maintained by ego lite; survives version upgrades.
+  for cand in /mnt/c/Users/*/.local/share/ego/active_version_dir/ego-browser.exe; do
+    [[ -x $cand ]] && { printf '%s\n' "$cand"; return 0; }
+  done
+
+  # Fallback: newest installed version directory.
+  local versions=() best=
+  for cand in "/mnt/c/Program Files/Citro Labs/ego lite/Application"/*/ego-browser.exe; do
+    [[ -x $cand ]] && versions+=("$cand")
+  done
+  if (( ${#versions[@]} > 0 )); then
+    best=$(printf '%s\n' "${versions[@]}" | sort -V | tail -n 1)
+    printf '%s\n' "$best"
+    return 0
+  fi
+
+  return 1
+}
+
+EXE=$(find_exe) || {
+  cat >&2 <<'MSG'
+ego-browser bridge: ego lite for Windows was not found.
+Install ego lite on Windows and finish onboarding, or set EGOLITE_BROWSER_EXE to
+the full path of ego-browser.exe, for example:
+  C:\Users\<name>\.local\share\ego\active_version_dir\ego-browser.exe
+MSG
+  exit 127
+}
+
+if [[ ! -x $EXE ]]; then
+  printf 'ego-browser bridge: not executable: %s\n' "$EXE" >&2
+  exit 126
+fi
+
+# Windows cannot use a Linux directory as its working directory. ego-browser
+# scripts must use absolute paths anyway, so run from a Windows-side directory.
+cd /mnt/c/Windows/Temp 2>/dev/null || cd /mnt/c/ 2>/dev/null || true
+
+exec "$EXE" "$@"

@@ -1,0 +1,31 @@
+#!/usr/bin/env bash
+# Print a Windows-usable path for a path inside this WSL distribution.
+#
+#   /mnt/c/Users/x   -> C:/Users/x
+#   /home/lk/Test/x  -> //wsl.localhost/<distro>/home/lk/Test/x
+#
+# The output is meant to be pasted into an ego-browser script, which runs as a
+# Windows process. Forward slashes work in Windows APIs and need no escaping.
+set -euo pipefail
+
+target=${1-}
+if [[ -z $target ]]; then
+  printf 'usage: winpath <linux-path>\n' >&2
+  exit 2
+fi
+
+abs=$(realpath -m -- "$target")
+
+if [[ $abs =~ ^/mnt/([a-zA-Z])(/.*)?$ ]]; then
+  drive=${BASH_REMATCH[1]^^}
+  rest=${BASH_REMATCH[2]:-/}
+  printf '%s:%s\n' "$drive" "$rest"
+  exit 0
+fi
+
+if [[ -z ${WSL_DISTRO_NAME:-} ]]; then
+  printf 'winpath: WSL_DISTRO_NAME is not set; run this inside WSL.\n' >&2
+  exit 1
+fi
+
+printf '//wsl.localhost/%s%s\n' "$WSL_DISTRO_NAME" "$abs"
